@@ -1,8 +1,8 @@
 # تنظیمات WooCommerce
 WOOCOMMERCE_CONFIG = {
     'site_url': 'https://offercoffee.ir',  # آدرس سایت شما
-    'consumer_key': 'ck_c1be277c529bee7928c79d7b86ef94a33a108908',
-    'consumer_secret': 'cs_edd1889bbf5a7c3504a7acc0388e15b9edecc3cb'
+    'consumer_key': 'ck_your_consumer_key_here',
+    'consumer_secret': 'cs_your_consumer_secret_here'
 }
 
 # تنظیمات لیبل
