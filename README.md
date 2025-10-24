@@ -33,13 +33,23 @@ offercoffee/
 
 ## 🛠️ نصب و راه‌اندازی
 
-### 1. نصب وابستگی‌ها
+### 1. ایجاد محیط مجازی (Virtual Environment)
 
 ```bash
+python3 -m venv venv
+source venv/bin/activate  # در Linux/Mac
+# یا
+venv\Scripts\activate     # در Windows
+```
+
+### 2. نصب وابستگی‌ها
+
+```bash
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 2. تنظیم WooCommerce
+### 3. تنظیم WooCommerce
 
 فایل `config.py` را ویرایش کنید:
 
@@ -51,7 +61,7 @@ WOOCOMMERCE_CONFIG = {
 }
 ```
 
-### 3. تنظیم کلید مخفی Webhook
+### 4. تنظیم کلید مخفی Webhook
 
 در فایل `webhook_server.py`:
 
@@ -59,7 +69,7 @@ WOOCOMMERCE_CONFIG = {
 WEBHOOK_SECRET = "your_super_secret_key_here"
 ```
 
-### 4. اجرای سیستم
+### 5. اجرای سیستم
 
 #### روش 1: اجرای آسان (پیشنهادی)
 
@@ -151,8 +161,18 @@ WantedBy=multi-user.target
 ```
 ### شروع سریع:
 
-1. `python start_webhook.py` - راه‌اندازی سرور
-2. تنظیم webhook در WooCommerce
-3. `python test_webhook.py` - تست سیستم
+1. `cd /offercoffee`
+2. `python3 -m venv venv`
+3. `source venv/bin/activate`
+4. `pip install -r requirements.txt`
+5. `python start_webhook.py` - راه‌اندازی سرور
+6. تنظیم webhook در WooCommerce
+7. `python test_webhook.py` - تست سیستم
+
+### خروج از محیط مجازی:
+
+```bash
+deactivate
+```
 
 **موفق باشید! ☕**
