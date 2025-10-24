@@ -5,9 +5,26 @@ import os
 import sys
 from woocommerce_api import WooCommerceAPI
 from config import WOOCOMMERCE_CONFIG, LABEL_CONFIG
-from label_main import generate_main_label
-from label_details import generate_details_label
-from label_mixed_linux import generate_mixed_label
+import platform
+
+# Import label generation functions with platform detection
+try:
+    from label_main import generate_main_label
+    from label_details import generate_details_label
+    from label_mixed_linux import generate_mixed_label
+except ImportError as e:
+    print(f"⚠️ Warning: Could not import label generation modules: {e}")
+    print("This might be due to missing dependencies. The script will continue with limited functionality.")
+    # Create dummy functions to prevent crashes
+    def generate_main_label(*args, **kwargs):
+        print("❌ Label generation not available due to import errors")
+        return False
+    def generate_details_label(*args, **kwargs):
+        print("❌ Label generation not available due to import errors")
+        return False
+    def generate_mixed_label(*args, **kwargs):
+        print("❌ Label generation not available due to import errors")
+        return False
 
 # Import printing functionality
 try:

@@ -1,9 +1,20 @@
 from PIL import Image, ImageDraw, ImageFont, features
 import qrcode
 from arabic_reshaper import reshape
-from bidi.algorithm import get_display
 import jdatetime
 import os
+
+# Handle bidi import with fallback for Windows DLL issues
+try:
+    from bidi.algorithm import get_display
+    BIDI_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Warning: bidi package not available ({e}). Using fallback for text shaping.")
+    BIDI_AVAILABLE = False
+    
+    # Fallback function that just returns the text as-is
+    def get_display(text):
+        return text
 
 # ==============================
 # ⚙️ تنظیمات کلی
@@ -125,7 +136,16 @@ def generate_main_label(order_data, output_path):
     # 📏 توابع کمکی
     # ==============================
     def fa_shape(text):
-        return text if HAS_RAQM else get_display(reshape(text))
+        if HAS_RAQM:
+            return text
+        elif BIDI_AVAILABLE:
+            return get_display(reshape(text))
+        else:
+            # Fallback: just reshape without bidi processing
+            try:
+                return reshape(text)
+            except:
+                return text
 
     def draw_fa(draw, xy, text, font, fill="black"):
         kwargs = {"direction": "rtl", "language": "fa"} if HAS_RAQM else {}
