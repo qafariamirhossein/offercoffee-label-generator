@@ -1,0 +1,18 @@
+# وابستگی‌های اصلی
+Flask>=2.3.0
+requests>=2.31.0
+Pillow>=10.4.0
+
+# برای تولید لیبل‌ها
+qrcode[pil]>=7.4.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.4.2
+
+# برای بارکد (اختیاری)
+python-barcode[images]>=0.15.0
+
+# برای تاریخ شمسی
+jdatetime>=4.1.0
+
+# برای چاپ در ویندوز (اختیاری)
+pywin32>=306; sys_platform == "win32"

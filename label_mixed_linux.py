@@ -190,27 +190,46 @@ def generate_mixed_label(order_details, output_path):
         draw_fa_text((LABEL_W - lw - 30, y_address), line, font=font_small)
         y_address += 33
 
-    # 🧾 بخش ترکیبات
-    y_comp = 380
-    # Calculate the exact position where "ترکیبات:" starts
+    # 🧾 بخش ترکیبات و جزئیات محصول - با تراز عمودی بهبود یافته
+    y_center_section = 380  # موقعیت مرکزی برای بخش ترکیبات
+    
+    # محاسبه موقعیت شروع بخش ترکیبات (سمت راست)
     comp_title = "ترکیبات:"
-    comp_title_w, _ = fa_text_size(comp_title, font_bold)
+    comp_title_w, comp_title_h = fa_text_size(comp_title, font_bold)
     comp_start_x = LABEL_W - comp_title_w - 30  # 30px margin from right edge
+    
+    # محاسبه موقعیت شروع بخش جزئیات (سمت چپ) - کمی پایین‌تر برای تراز بهتر
+    product_details = [
+        f"وزن: {weight} گرم",
+        f"آسیاب شود: {grind}", 
+        "اسپرسوساز"
+    ]
+    
+    # تراز عمودی: بخش ترکیبات در موقعیت اصلی، جزئیات کمی پایین‌تر
+    y_comp = y_center_section
+    y_details = y_center_section + 35  # 35 پیکسل پایین‌تر برای تراز بهتر
+    
+    # رسم عنوان ترکیبات
     draw_fa_text((comp_start_x, y_comp), comp_title, font=font_bold)
-
-    # Align all composition details to start exactly where "ترکیبات:" starts
-    # Handle multi-line composition text
+    
+    # رسم جزئیات محصول (سمت چپ)
+    for detail in product_details:
+        dw, dh = fa_text_size(detail, font_fa_regular_normal)
+        draw_fa_text((60, y_details), detail, font=font_fa_regular_normal)
+        y_details += 40
+    
+    # رسم جزئیات ترکیبات (سمت راست)
     composition_lines = composition.split('\n')
     y_comp_current = y_comp + 40
 
-    # Calculate the maximum width needed for composition lines
+    # محاسبه حداکثر عرض مورد نیاز برای خطوط ترکیبات
     max_detail_width = max(fa_text_size(line, font_fa_regular_normal)[0] for line in composition_lines)
 
-    # Adjust start position if details would go beyond right edge
+    # تنظیم موقعیت شروع در صورت نیاز
     if comp_start_x + max_detail_width > LABEL_W - 30:
         comp_start_x = LABEL_W - max_detail_width - 30
 
-    # Draw each line of composition
+    # رسم هر خط ترکیبات
     for line in composition_lines:
         draw_fa_text((comp_start_x, y_comp_current), line, font=font_fa_regular_normal)
         y_comp_current += 40
@@ -226,18 +245,6 @@ def generate_mixed_label(order_details, output_path):
         end_x = min(current_x + dash_length, x_end)
         draw.line([(current_x, y), (end_x, y)], fill="black", width=2)
         current_x += dash_length + gap_length
-
-    # 📋 جزئیات محصول (جایگزین QR)
-    product_details = [
-        f"وزن: {weight} گرم",
-        f"آسیاب شود: {grind}", 
-        "اسپرسوساز"
-    ]
-    y_details = y_comp - 10
-    for detail in product_details:
-        dw, dh = fa_text_size(detail, font_fa_regular_normal)
-        draw_fa_text((60, y_details), detail, font=font_fa_regular_normal)
-        y_details += 40
 
     # ➖ خط جداکننده پایین
     # Create dashed line by drawing multiple small segments

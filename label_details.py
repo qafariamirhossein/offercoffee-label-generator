@@ -4,13 +4,7 @@ import re
 from urllib.parse import quote
 from config import WOOCOMMERCE_CONFIG
 from woocommerce_api import WooCommerceAPI
-try:
-    # بارکد یک‌بعدی (Code128) برای لینک محصول
-    from barcode import Code128
-    from barcode.writer import ImageWriter
-    HAS_BARCODE = True
-except Exception:
-    HAS_BARCODE = False
+# QR code is used instead of barcode for product links
 from arabic_reshaper import reshape
 from bidi.algorithm import get_display
 import jdatetime
@@ -268,7 +262,7 @@ def generate_details_label(order_data, output_path):
         draw.line([(current_x, y), (end_x, y)], fill="black", width=2)
         current_x += dash_length + gap_length
 
-    # 🔳 بارکد واقعی (Code128) برای لینک محصول؛ در صورت عدم دسترسی به کتابخانه، QR
+    # 🔳 QR کد برای لینک محصول
     if line_items:
         first_product = line_items[0]
         # ساخت لینک محصول
@@ -294,61 +288,15 @@ def generate_details_label(order_data, output_path):
                 product_link = f"{WOOCOMMERCE_CONFIG['site_url'].rstrip('/')}/product/{slug}/"
             else:
                 product_link = f"{WOOCOMMERCE_CONFIG['site_url'].rstrip('/')}"
-        # برای Code128، URL را ASCII (percent-encode) کن
-        product_link_ascii = quote(product_link, safe=':/?&=%#.-')
-        if HAS_BARCODE:
-            try:
-                # تولید بارکد Code128 به‌صورت تصویر PIL
-                code128 = Code128(product_link_ascii, writer=ImageWriter())
-                barcode_img = code128.render(writer_options={
-                    "module_width": 0.35,   # باریک برای جا شدن لینک بلند
-                    "module_height": 55,
-                    "quiet_zone": 2.0,
-                    "font_size": 16,
-                    "text_distance": 2,
-                    "write_text": True,
-                })
-                # محدود کردن عرض بارکد به 440px برای چیدمان بهتر
-                max_w = 440
-                w, h = barcode_img.size
-                if w > max_w:
-                    new_h = int(h * (max_w / w))
-                    barcode_img = barcode_img.resize((max_w, new_h), Image.LANCZOS)
-                img.paste(barcode_img, (60, y_comp - 10))
-            except Exception:
-                # اگر تولید بارکد خطا داد، QR جایگزین شود
-                qr = qrcode.make(product_link).resize((150, 150))
-                img.paste(qr, (60, y_comp - 10))
-        else:
-            # در نبود کتابخانه بارکد، از QR استفاده می‌کنیم
-            qr = qrcode.make(product_link).resize((150, 150))
-            img.paste(qr, (60, y_comp - 10))
+        
+        # تولید QR کد برای لینک محصول
+        qr = qrcode.make(product_link).resize((150, 150))
+        img.paste(qr, (60, y_comp + 20))
     else:
         # اگر محصولی نباشد، آدرس سایت را قرار بده
         fallback_text = "https://offercoffee.ir"
-        if HAS_BARCODE:
-            try:
-                code128 = Code128(fallback_text, writer=ImageWriter())
-                barcode_img = code128.render(writer_options={
-                    "module_width": 0.38,
-                    "module_height": 55,
-                    "quiet_zone": 2.0,
-                    "font_size": 16,
-                    "text_distance": 2,
-                    "write_text": True,
-                })
-                max_w = 440
-                w, h = barcode_img.size
-                if w > max_w:
-                    new_h = int(h * (max_w / w))
-                    barcode_img = barcode_img.resize((max_w, new_h), Image.LANCZOS)
-                img.paste(barcode_img, (60, y_comp - 10))
-            except Exception:
-                qr = qrcode.make(fallback_text).resize((150, 150))
-                img.paste(qr, (60, y_comp - 10))
-        else:
-            qr = qrcode.make(fallback_text).resize((150, 150))
-            img.paste(qr, (60, y_comp - 10))
+        qr = qrcode.make(fallback_text).resize((150, 150))
+        img.paste(qr, (60, y_comp + 20))
 
     # ➖ خط جداکننده پایین
     # Create dashed line by drawing multiple small segments
@@ -363,7 +311,7 @@ def generate_details_label(order_data, output_path):
         current_x += dash_length + gap_length
 
     # 📱 متن بالای خط جداکننده پایین
-    scan_text = "برای ثبت سفارش مجدد محصول بارکد را اسکن کنید"
+    scan_text = "برای مشاهده محصول در سایت QR کد را اسکن کنید"
     sw, sh = fa_text_size(scan_text, font_fa_regular_small)
     draw_fa_text(((LABEL_W - sw) / 2, 590), scan_text, font_fa_regular_small)
 
