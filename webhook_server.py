@@ -36,14 +36,27 @@ except ImportError:
 WEBHOOK_SECRET = "your_webhook_secret_here"  # این رو در WooCommerce هم بذار
 PRINTER_NAME = "Godex G500"  # نام چاپگر
 
-# تنظیم لاگ
+# تنظیم لاگ با پشتیبانی کامل از UTF-8 برای کنسول و فایل
+try:
+    # تلاش برای تنظیم رمزگذاری خروجی کنسول روی UTF-8 (Python 3.7+)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    else:
+        # در برخی پلتفرم‌ها ممکن است reconfigure در دسترس نباشد
+        import io
+        if hasattr(sys.stdout, "buffer"):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+except Exception:
+    # در صورت بروز خطا در تنظیم رمزگذاری کنسول، ادامه می‌دهیم تا حداقل لاگ فایل کار کند
+    pass
+
+file_handler = logging.FileHandler('webhook.log', encoding='utf-8')
+console_handler = logging.StreamHandler(sys.stdout)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('webhook.log'),
-        logging.StreamHandler()
-    ]
+    handlers=[file_handler, console_handler]
 )
 logger = logging.getLogger(__name__)
 
