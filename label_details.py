@@ -332,7 +332,7 @@ def generate_details_label(order_data, output_path):
         current_x += dash_length + gap_length
 
     # 📱 متن بالای خط جداکننده پایین
-    scan_text = "برای مشاهده محصول در سایت QR کد را اسکن کنید"
+    scan_text = "برای مشاهده محصول در سایت بارکد را اسکن کنید"
     sw, sh = fa_text_size(scan_text, font_fa_regular_small)
     draw_fa_text(((LABEL_W - sw) / 2, 590), scan_text, font_fa_regular_small)
 
@@ -352,7 +352,7 @@ def generate_details_label(order_data, output_path):
     max_text_w = LABEL_W - 50  # حاشیه‌ها کمی کمتر برای بزرگ‌تر شدن متن
     font_website_big = autosize_website_font(website, max_text_w)
     ww, wh = text_size(website, font_website_big)
-    draw.text(((LABEL_W - ww) / 2, LABEL_H - wh - 18), website, font=font_website_big, fill="black")
+    draw.text(((LABEL_W - ww) / 2, LABEL_H - wh - 33), website, font=font_website_big, fill="black")
 
     # 📤 ذخیره و نمایش
     img.save(output_path)

@@ -311,7 +311,7 @@ def generate_details_label(order_data, output_path):
         current_x += dash_length + gap_length
 
     # 📱 متن بالای خط جداکننده پایین
-    scan_text = "برای مشاهده محصول در سایت QR کد را اسکن کنید"
+    scan_text = "برای مشاهده محصول در سایت بارکد را اسکن کنید"
     sw, sh = fa_text_size(scan_text, font_fa_regular_small)
     draw_fa_text(((LABEL_W - sw) / 2, 590), scan_text, font_fa_regular_small)
 

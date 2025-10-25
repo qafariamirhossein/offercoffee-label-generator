@@ -212,7 +212,7 @@ def generate_main_label(order_data, output_path):
     permit_no = "14046488"
     pnw, pnh = text_size(draw, permit_no, font_fa_regular_small, fa=True)
     permit_x = 45 + (150 - pnw) // 2  # وسط QR
-    permit_y = bottom_y + 150 + 3
+    permit_y = bottom_y + 150 - 10  # نزدیک‌تر به QR (10 پیکسل بالاتر)
     draw_fa(draw, (permit_x, permit_y), permit_no, font_fa_regular_small)
 
     # 🔸 متن‌ها - راست‌چین کردن همه متن‌ها
@@ -234,7 +234,7 @@ def generate_main_label(order_data, output_path):
     website_text = "www.offercoffee.ir"
     website_w, website_h = text_size(draw, website_text, font_website)
     website_x = (LABEL_W - website_w) // 2  # وسط صفحه
-    website_y = LABEL_H - website_h - 20  # 20 پیکسل از پایین
+    website_y = LABEL_H - website_h - 50  # 50 پیکسل از پایین (30 پیکسل بالاتر)
     draw.text((website_x, website_y), website_text, font=font_website, fill="black")
 
     # ==============================

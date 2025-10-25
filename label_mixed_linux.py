@@ -92,7 +92,22 @@ def generate_mixed_label(order_details, output_path):
         font_normal = ImageFont.truetype(FONT_FA, 26)
         font_small = ImageFont.truetype(FONT_FA, 22)
         font_bold = ImageFont.truetype(FONT_FA, 32)
-        font_website = ImageFont.truetype(FONT_EN, 34)
+        # Use OpenSans font from project root for website address (same as main/details)
+        try:
+            font_website = ImageFont.truetype("OpenSans-Regular.ttf", 61)
+        except OSError:
+            try:
+                # Platform-specific fallback paths
+                import platform
+                if platform.system() == "Windows":
+                    # Windows system fonts
+                    font_website = ImageFont.truetype("C:/Windows/Fonts/arial.ttf", 61)
+                else:
+                    # Linux system fonts
+                    font_website = ImageFont.truetype("/usr/share/fonts/open-sans/OpenSans-Regular.ttf", 61)
+            except OSError:
+                # Final fallback to default font
+                font_website = ImageFont.load_default()
     except OSError:
         print("⚠️ فونت‌ها یافت نشدند، از پیش‌فرض استفاده می‌شود.")
         font_title = font_brand = font_normal = font_small = font_bold = font_website = ImageFont.load_default()
@@ -270,7 +285,7 @@ def generate_mixed_label(order_details, output_path):
     # ➖ خط جداکننده پایین
     # Create dashed line by drawing multiple small segments
     x_start, x_end = 60, LABEL_W - 60
-    y = 650
+    y = 620  # 30 پیکسل بالاتر
     dash_length = 8
     gap_length = 4
     current_x = x_start
@@ -279,17 +294,13 @@ def generate_mixed_label(order_details, output_path):
         draw.line([(current_x, y), (end_x, y)], fill="black", width=2)
         current_x += dash_length + gap_length
 
-    # 📱 متن بالای خط جداکننده پایین
-    scan_text = "برای ثبت سفارش مجدد محصول بارکد را اسکن کنید"
-    sw, sh = fa_text_size(scan_text, font_fa_regular_small)
-    draw_fa_text(((LABEL_W - sw) / 2, 590), scan_text, font=font_fa_regular_small)
 
     # ☕ توضیح پایانی
     desc_lines = [
         "قهوه آفر عرضه کننده مرغوب ترین دانه قهوه",
         "قهوه فوری و تجهیزات"
     ]
-    y_desc = 660
+    y_desc = 630  # 30 پیکسل بالاتر
     for line in desc_lines:
         lw, lh = fa_text_size(line, font_fa_regular_small)
         draw_fa_text(((LABEL_W - lw) / 2, y_desc), line, font=font_fa_regular_small)
