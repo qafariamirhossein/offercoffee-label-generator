@@ -100,7 +100,7 @@ python webhook_server.py
 ### تست اتصال
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:5443/health
 ```
 
 ### تست کامل
@@ -135,7 +135,7 @@ server {
     ssl_certificate_key /path/to/key.pem;
     
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:5443;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }

@@ -296,12 +296,12 @@ if __name__ == '__main__':
         sys.exit(1)
     
     logger.info("🚀 شروع سرور webhook...")
-    logger.info("📡 سرور در حال اجرا روی http://0.0.0.0:8080")
-    logger.info("🔗 آدرس webhook: http://your-server:8080/webhook/new-order")
+    logger.info("📡 سرور در حال اجرا روی http://0.0.0.0:5443")
+    logger.info("🔗 آدرس webhook: http://your-server:5443/webhook/new-order")
     
     # اجرای سرور
     app.run(
         host='0.0.0.0',
-        port=8080,
+        port=5443,
         debug=False
     )

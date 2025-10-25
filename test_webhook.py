@@ -12,7 +12,7 @@ import base64
 from datetime import datetime
 
 # تنظیمات
-WEBHOOK_URL = "http://localhost:8080/webhook/new-order"
+WEBHOOK_URL = "http://localhost:5443/webhook/new-order"
 WEBHOOK_SECRET = "your_webhook_secret_here"  # باید با سرور یکسان باشد
 
 def create_test_signature(payload: bytes, secret: str) -> str:
@@ -100,7 +100,7 @@ def test_webhook_connection():
     print("🔍 تست اتصال به سرور...")
     
     try:
-        response = requests.get("http://localhost:8080/health", timeout=5)
+        response = requests.get("http://localhost:5443/health", timeout=5)
         if response.status_code == 200:
             print("✅ سرور در حال اجرا است")
             return True

@@ -97,9 +97,9 @@ def main():
     create_directories()
     
     print("\n🎯 آماده برای اجرای سرور...")
-    print("📡 سرور روی http://localhost:8080 اجرا خواهد شد")
-    print("🔗 آدرس webhook: http://localhost:8080/webhook/new-order")
-    print("🧪 تست: http://localhost:8080/health")
+    print("📡 سرور روی http://localhost:5443 اجرا خواهد شد")
+    print("🔗 آدرس webhook: http://localhost:5443/webhook/new-order")
+    print("🧪 تست: http://localhost:5443/health")
     print("\n⏳ در حال شروع سرور...")
     
     try:
