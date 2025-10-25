@@ -75,6 +75,7 @@ def verify_webhook_signature(payload: bytes, signature: str, secret: str) -> boo
         True اگر امضا معتبر باشد
     """
     if not signature:
+        logger.warning("❌ امضای webhook ارسال نشده")
         return False
     
     try:
@@ -88,10 +89,17 @@ def verify_webhook_signature(payload: bytes, signature: str, secret: str) -> boo
         # تبدیل به base64
         expected_b64 = base64.b64encode(expected_signature).decode('utf-8')
         
+        # لاگ برای دیباگ
+        logger.debug(f"امضای دریافتی: {signature}")
+        logger.debug(f"امضای محاسبه شده: {expected_b64}")
+        
         # مقایسه امن
-        return hmac.compare_digest(signature, expected_b64)
+        is_valid = hmac.compare_digest(signature, expected_b64)
+        if not is_valid:
+            logger.warning(f"❌ امضای webhook نامعتبر - دریافتی: {signature[:10]}... - محاسبه شده: {expected_b64[:10]}...")
+        return is_valid
     except Exception as e:
-        logger.error(f"خطا در تأیید امضا: {e}")
+        logger.error(f"❌ خطا در تأیید امضا: {e}")
         return False
 
 def print_label(image_path: str) -> bool:
@@ -278,18 +286,23 @@ def process_new_order(order_data: Dict[str, Any]) -> bool:
         return False
 
 @app.route('/webhook/new-order', methods=['POST'])
+@app.route('/webhook/new-order/', methods=['POST'])  # پشتیبانی از URL با اسلش
 def handle_new_order():
     """
     دریافت webhook سفارش جدید از WooCommerce
     """
     try:
+        # لاگ اطلاعات درخواست
+        logger.info(f"📨 دریافت درخواست webhook از {request.remote_addr}")
+        logger.info(f"📋 Headers: {dict(request.headers)}")
+        
         # دریافت امضا از header
         signature = request.headers.get('X-WC-Webhook-Signature')
         
         # تأیید امضا
         if not verify_webhook_signature(request.data, signature, WEBHOOK_SECRET):
             logger.warning("❌ امضای webhook نامعتبر")
-            return jsonify({"error": "Invalid signature"}), 403
+            return jsonify({"error": "Invalid signature", "received_signature": signature}), 403
         
         # دریافت داده‌های سفارش
         order_data = request.get_json()
@@ -315,7 +328,8 @@ def handle_new_order():
             
     except Exception as e:
         logger.error(f"❌ خطای غیرمنتظره در webhook: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        logger.error(f"❌ جزئیات خطا: {str(e)}")
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
 
 @app.route('/webhook/test', methods=['GET'])
 def test_webhook():
@@ -325,6 +339,31 @@ def test_webhook():
         "message": "Webhook server is running",
         "timestamp": datetime.now().isoformat()
     })
+
+@app.route('/webhook/test-order', methods=['POST'])
+def test_order_without_signature():
+    """تست سفارش بدون نیاز به امضا (فقط برای تست)"""
+    try:
+        # دریافت داده‌های سفارش
+        order_data = request.get_json()
+        if not order_data:
+            logger.error("❌ داده‌های سفارش یافت نشد")
+            return jsonify({"error": "No order data"}), 400
+        
+        order_id = order_data.get('id')
+        logger.info(f"🧪 تست سفارش (بدون امضا): {order_id}")
+        
+        # پردازش سفارش
+        if process_new_order(order_data):
+            logger.info(f"✅ سفارش تست {order_id} با موفقیت پردازش شد")
+            return jsonify({"status": "success", "order_id": order_id, "message": "Test order processed successfully"}), 200
+        else:
+            logger.error(f"❌ خطا در پردازش سفارش تست {order_id}")
+            return jsonify({"status": "error", "order_id": order_id, "message": "Test processing failed"}), 500
+            
+    except Exception as e:
+        logger.error(f"❌ خطای غیرمنتظره در تست سفارش: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/check-payment/<int:order_id>', methods=['GET'])
 def check_payment_status(order_id):
@@ -353,6 +392,29 @@ def check_payment_status(order_id):
         logger.error(f"❌ خطا در بررسی وضعیت پرداخت سفارش {order_id}: {e}")
         return jsonify({"error": "Failed to check payment status"}), 500
 
+@app.route('/webhook/verify-signature', methods=['POST'])
+def verify_signature():
+    """تست تأیید امضای webhook"""
+    try:
+        signature = request.headers.get('X-WC-Webhook-Signature')
+        payload = request.data
+        
+        logger.info(f"🔍 تست امضا - دریافتی: {signature}")
+        logger.info(f"🔍 Payload length: {len(payload)} bytes")
+        
+        is_valid = verify_webhook_signature(payload, signature, WEBHOOK_SECRET)
+        
+        return jsonify({
+            "signature_valid": is_valid,
+            "received_signature": signature,
+            "payload_length": len(payload),
+            "secret_configured": WEBHOOK_SECRET != "asdasd"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ خطا در تست امضا: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """بررسی سلامت سرور"""
@@ -369,10 +431,15 @@ def home():
         "message": "WooCommerce Label Webhook Server",
         "endpoints": {
             "webhook": "/webhook/new-order",
+            "webhook_with_slash": "/webhook/new-order/",
             "test": "/webhook/test",
-            "health": "/health"
+            "test_order": "/webhook/test-order",
+            "verify_signature": "/webhook/verify-signature",
+            "health": "/health",
+            "check_payment": "/check-payment/<order_id>"
         },
-        "status": "running"
+        "status": "running",
+        "webhook_secret_configured": WEBHOOK_SECRET != "your_webhook_secret_here"
     })
 
 if __name__ == '__main__':

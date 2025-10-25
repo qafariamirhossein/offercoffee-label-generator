@@ -50,7 +50,7 @@ def generate_details_label(order_data, output_path):
     # اطلاعات سفارش
     order_no = str(order_data['id'])
     total = order_data['total']
-    payment_method = order_data['payment_method_title']
+    payment_method = order_data.get('payment_method_title', order_data.get('payment_method', 'نامشخص'))
     
     # 📅 تاریخ امروز
     today = jdatetime.date.today()

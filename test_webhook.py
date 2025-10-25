@@ -32,6 +32,7 @@ def create_test_order():
         "status": "processing",
         "total": "150000",
         "currency": "IRR",
+        "payment_method": "cod",
         "date_created": datetime.now().isoformat(),
         "billing": {
             "first_name": "احمد",
@@ -72,6 +73,7 @@ def create_test_mixed_order():
         "status": "processing",
         "total": "200000",
         "currency": "IRR",
+        "payment_method": "cod",
         "date_created": datetime.now().isoformat(),
         "billing": {
             "first_name": "فاطمه",
@@ -113,6 +115,68 @@ def test_webhook_connection():
         return False
     except Exception as e:
         print(f"❌ خطا در اتصال: {e}")
+        return False
+
+def test_signature_verification():
+    """تست تأیید امضا"""
+    print("\n🔒 تست تأیید امضا...")
+    
+    order_data = create_test_order()
+    payload = json.dumps(order_data, ensure_ascii=False).encode('utf-8')
+    signature = create_test_signature(payload, WEBHOOK_SECRET)
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'X-WC-Webhook-Signature': signature
+    }
+    
+    try:
+        response = requests.post("http://localhost:5443/webhook/verify-signature", 
+                               data=payload, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            result = response.json()
+            if result.get('signature_valid'):
+                print("✅ امضای معتبر به درستی تأیید شد")
+                return True
+            else:
+                print(f"❌ امضای معتبر رد شد: {result}")
+                return False
+        else:
+            print(f"❌ خطا در تست امضا: {response.status_code}")
+            print(f"📄 پاسخ: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ خطا در تست امضا: {e}")
+        return False
+
+def test_order_without_signature():
+    """تست سفارش بدون امضا"""
+    print("\n🧪 تست سفارش بدون امضا...")
+    
+    order_data = create_test_order()
+    payload = json.dumps(order_data, ensure_ascii=False).encode('utf-8')
+    
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    
+    try:
+        response = requests.post("http://localhost:5443/webhook/test-order", 
+                               data=payload, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            print("✅ سفارش بدون امضا با موفقیت پردازش شد")
+            print(f"📄 پاسخ: {response.json()}")
+            return True
+        else:
+            print(f"❌ خطا در پردازش سفارش بدون امضا: {response.status_code}")
+            print(f"📄 پاسخ: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ خطا در ارسال درخواست: {e}")
         return False
 
 def test_regular_order():
@@ -210,6 +274,8 @@ def main():
     
     # تست‌های مختلف
     tests = [
+        ("تأیید امضا", test_signature_verification),
+        ("سفارش بدون امضا", test_order_without_signature),
         ("سفارش عادی", test_regular_order),
         ("سفارش میکس", test_mixed_order),
         ("امضای نامعتبر", test_invalid_signature)
