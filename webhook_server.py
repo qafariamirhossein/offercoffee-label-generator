@@ -119,6 +119,47 @@ def print_label(image_path: str) -> bool:
         logger.error(f"❌ خطا در چاپ - تصویر ذخیره شد: {e}")
         return False
 
+def is_payment_completed(order_details: Dict[str, Any]) -> bool:
+    """
+    بررسی وضعیت پرداخت سفارش
+    
+    Args:
+        order_details: داده‌های سفارش از WooCommerce
+        
+    Returns:
+        True اگر سفارش پرداخت شده باشد
+    """
+    try:
+        # بررسی وضعیت پرداخت
+        payment_status = order_details.get('status', '').lower()
+        payment_method = order_details.get('payment_method', '')
+        
+        # وضعیت‌های پرداخت شده در WooCommerce
+        paid_statuses = ['completed', 'processing', 'on-hold']
+        
+        # بررسی وضعیت سفارش
+        if payment_status not in paid_statuses:
+            logger.warning(f"⚠️ سفارش {order_details.get('id')} پرداخت نشده - وضعیت: {payment_status}")
+            return False
+        
+        # بررسی روش پرداخت
+        if not payment_method:
+            logger.warning(f"⚠️ سفارش {order_details.get('id')} روش پرداخت مشخص نیست")
+            return False
+        
+        # بررسی مبلغ سفارش
+        total = float(order_details.get('total', 0))
+        if total <= 0:
+            logger.warning(f"⚠️ سفارش {order_details.get('id')} مبلغ نامعتبر: {total}")
+            return False
+        
+        logger.info(f"✅ سفارش {order_details.get('id')} پرداخت شده - وضعیت: {payment_status}, روش: {payment_method}, مبلغ: {total}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ خطا در بررسی وضعیت پرداخت سفارش {order_details.get('id', 'نامشخص')}: {e}")
+        return False
+
 def is_mixed_order(order_details: Dict[str, Any]) -> bool:
     """تشخیص سفارش‌های میکس بر اساس نام محصولات"""
     line_items = order_details.get('line_items', [])
@@ -147,6 +188,11 @@ def process_new_order(order_data: Dict[str, Any]) -> bool:
     try:
         order_id = order_data.get('id')
         logger.info(f"📦 پردازش سفارش جدید: {order_id}")
+        
+        # بررسی وضعیت پرداخت قبل از تولید لیبل
+        if not is_payment_completed(order_data):
+            logger.warning(f"🚫 سفارش {order_id} پرداخت نشده - لیبل تولید نمی‌شود")
+            return False
         
         # ایجاد پوشه خروجی
         os.makedirs(LABEL_CONFIG['output_dir'], exist_ok=True)
@@ -244,10 +290,15 @@ def handle_new_order():
         # پردازش سفارش
         if process_new_order(order_data):
             logger.info(f"✅ سفارش {order_id} با موفقیت پردازش شد")
-            return jsonify({"status": "success", "order_id": order_id}), 200
+            return jsonify({"status": "success", "order_id": order_id, "message": "Labels generated successfully"}), 200
         else:
-            logger.error(f"❌ خطا در پردازش سفارش {order_id}")
-            return jsonify({"status": "error", "order_id": order_id}), 500
+            # بررسی دلیل عدم پردازش
+            if not is_payment_completed(order_data):
+                logger.warning(f"⚠️ سفارش {order_id} پرداخت نشده - لیبل تولید نشد")
+                return jsonify({"status": "skipped", "order_id": order_id, "message": "Order not paid - labels not generated"}), 200
+            else:
+                logger.error(f"❌ خطا در پردازش سفارش {order_id}")
+                return jsonify({"status": "error", "order_id": order_id, "message": "Processing failed"}), 500
             
     except Exception as e:
         logger.error(f"❌ خطای غیرمنتظره در webhook: {e}")
@@ -261,6 +312,33 @@ def test_webhook():
         "message": "Webhook server is running",
         "timestamp": datetime.now().isoformat()
     })
+
+@app.route('/check-payment/<int:order_id>', methods=['GET'])
+def check_payment_status(order_id):
+    """بررسی وضعیت پرداخت یک سفارش خاص"""
+    try:
+        # دریافت اطلاعات سفارش از WooCommerce
+        api = WooCommerceAPI()
+        order_data = api.get_order(order_id)
+        
+        if not order_data:
+            return jsonify({"error": "Order not found"}), 404
+        
+        # بررسی وضعیت پرداخت
+        is_paid = is_payment_completed(order_data)
+        
+        return jsonify({
+            "order_id": order_id,
+            "is_paid": is_paid,
+            "status": order_data.get('status'),
+            "payment_method": order_data.get('payment_method'),
+            "total": order_data.get('total'),
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ خطا در بررسی وضعیت پرداخت سفارش {order_id}: {e}")
+        return jsonify({"error": "Failed to check payment status"}), 500
 
 @app.route('/health', methods=['GET'])
 def health_check():
