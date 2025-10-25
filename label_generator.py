@@ -13,7 +13,7 @@ import platform
 try:
     from label_main import generate_main_label
     from label_details import generate_details_label
-    from label_mixed_linux import generate_mixed_label
+    from label_mixed import generate_mixed_label
 except ImportError as e:
     print(f"⚠️ Warning: Could not import label generation modules: {e}")
     print("This might be due to missing dependencies. The script will continue with limited functionality.")
@@ -165,20 +165,40 @@ def process_orders():
         try:
             # بررسی نوع سفارش
             if is_mixed_order(order_details):
-                logger.info(f"🔀 سفارش {order_id} یک سفارش میکس است - تولید برچسب میکس...")
+                logger.info(f"🔀 سفارش {order_id} یک سفارش میکس است - تولید برچسب‌های میکس...")
+                
+                # لیست تمام لیبل‌های تولید شده برای این سفارش میکس
+                all_labels = []
+                
+                # تولید لیبل main (back) برای سفارش میکس
+                main_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_back_1.jpg"
+                logger.info(f"🏷️ تولید لیبل main برای سفارش میکس {order_id}")
+                
+                # ایجاد کپی از order_details برای لیبل main
+                main_order = order_details.copy()
+                # برای لیبل main، فقط یک محصول میکس در نظر بگیریم
+                main_order['line_items'] = [order_details['line_items'][0]] if order_details['line_items'] else []
+                
+                generate_main_label(main_order, main_label_path)
+                all_labels.append(main_label_path)
                 
                 # تولید لیبل میکس
                 mixed_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_mixed.jpg"
                 generate_mixed_label(order_details, mixed_label_path)
+                all_labels.append(mixed_label_path)
                 
-                logger.info(f"✅ لیبل میکس سفارش {order_id} با موفقیت تولید شد")
+                logger.info(f"✅ لیبل‌های سفارش میکس {order_id} با موفقیت تولید شدند")
                 
-                # چاپ لیبل میکس (ذخیره نکن اگر چاپ موفق بود)
-                print_success = print_label(mixed_label_path, save_when_print_fails=False)
-                if print_success:
-                    logger.info(f"✅ لیبل میکس سفارش {order_id} چاپ شد")
-                else:
-                    logger.warning(f"⚠️ لیبل میکس سفارش {order_id} ذخیره شد (چاپ ناموفق)")
+                # چاپ تمام لیبل‌های این سفارش میکس به ترتیب
+                logger.info(f"🖨️ شروع چاپ {len(all_labels)} لیبل برای سفارش میکس {order_id}...")
+                for i, label_path in enumerate(all_labels):
+                    print_success = print_label(label_path, save_when_print_fails=False)
+                    if print_success:
+                        logger.info(f"✅ لیبل {i+1}/{len(all_labels)} چاپ شد: {os.path.basename(label_path)}")
+                    else:
+                        logger.warning(f"⚠️ لیبل {i+1}/{len(all_labels)} ذخیره شد: {os.path.basename(label_path)}")
+                
+                logger.info(f"✅ تمام لیبل‌های سفارش میکس {order_id} پردازش شدند")
                 
             else:
                 logger.info(f"📦 سفارش {order_id} یک سفارش عادی است - تولید برچسب‌های معمولی...")

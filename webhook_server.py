@@ -21,7 +21,7 @@ from woocommerce_api import WooCommerceAPI
 from config import WOOCOMMERCE_CONFIG, LABEL_CONFIG
 from label_main import generate_main_label
 from label_details import generate_details_label
-from label_mixed_linux import generate_mixed_label
+from label_mixed import generate_mixed_label
 
 # Import printing functionality
 try:
@@ -168,19 +168,27 @@ def process_new_order(order_data: Dict[str, Any]) -> bool:
         else:
             logger.info(f"📦 سفارش {order_id} یک سفارش عادی است - تولید برچسب‌های معمولی...")
             
-            # تولید لیبل اصلی
-            main_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_main.jpg"
-            logger.info(f"🏷️ تولید لیبل اصلی...")
-            generate_main_label(order_data, main_label_path)
-            
-            # چاپ لیبل اصلی
-            print_label(main_label_path)
-            
-            # تولید لیبل‌های جزئیات برای هر محصول
+            # تولید لیبل‌های اصلی (back) برای هر محصول
             line_items = order_data.get('line_items', [])
             logger.info(f"📋 {len(line_items)} محصول در سفارش یافت شد")
             
-            generated_detail_labels = []
+            # لیست تمام لیبل‌های تولید شده برای این سفارش
+            all_labels = []
+            
+            # تولید تمام لیبل‌های پشت (back) برای این سفارش
+            for i, item in enumerate(line_items):
+                # ایجاد لیبل پشت برای هر محصول
+                back_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_back_{i+1}.jpg"
+                logger.info(f"🏷️ تولید لیبل پشت برای محصول {i+1}: {item.get('name', 'نامشخص')}")
+                
+                # ایجاد کپی از order_data با فقط این محصول
+                single_product_order = order_data.copy()
+                single_product_order['line_items'] = [item]
+                
+                generate_main_label(single_product_order, back_label_path)
+                all_labels.append(back_label_path)
+            
+            # تولید تمام لیبل‌های جزئیات برای این سفارش
             for i, item in enumerate(line_items):
                 # ایجاد لیبل جزئیات برای هر محصول
                 details_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_details_{i+1}.jpg"
@@ -191,15 +199,18 @@ def process_new_order(order_data: Dict[str, Any]) -> bool:
                 single_product_order['line_items'] = [item]
                 
                 generate_details_label(single_product_order, details_label_path)
-                generated_detail_labels.append(details_label_path)
-                
-                # چاپ لیبل جزئیات
-                print_label(details_label_path)
+                all_labels.append(details_label_path)
             
-            logger.info(f"✅ لیبل‌های سفارش {order_id} با موفقیت تولید شدند")
-            logger.info(f"   📁 لیبل اصلی: {main_label_path}")
-            for i, detail_path in enumerate(generated_detail_labels):
-                logger.info(f"   📁 لیبل جزئیات {i+1}: {detail_path}")
+            # چاپ تمام لیبل‌های این سفارش به ترتیب
+            logger.info(f"🖨️ شروع چاپ {len(all_labels)} لیبل برای سفارش {order_id}...")
+            for i, label_path in enumerate(all_labels):
+                print_success = print_label(label_path)
+                if print_success:
+                    logger.info(f"✅ لیبل {i+1}/{len(all_labels)} چاپ شد: {os.path.basename(label_path)}")
+                else:
+                    logger.warning(f"⚠️ لیبل {i+1}/{len(all_labels)} ذخیره شد: {os.path.basename(label_path)}")
+            
+            logger.info(f"✅ تمام لیبل‌های سفارش {order_id} پردازش شدند")
         
         return True
         
