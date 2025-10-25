@@ -11,8 +11,8 @@ import os
 FONT_EN = "Galatican.ttf"
 FONT_FA = "BTitrBd.ttf"
 
-# اندازه لیبل (بر اساس لیبل واقعی تصویر)
-LABEL_W, LABEL_H = 617, 800  # حدود 8×10 سانتی‌متر
+# اندازه لیبل (بر اساس لیبل واقعی تصویر) - افزایش DPI برای کیفیت بهتر
+LABEL_W, LABEL_H = int(617 * 1.2), int(800 * 1.2)  # 20% افزایش برای کیفیت بهتر چاپ
 
 def generate_main_label(order_data, output_path):
     """تولید لیبل اصلی - ثابت برای همه سفارشات"""
@@ -40,11 +40,11 @@ def generate_main_label(order_data, output_path):
     # ==============================
     HAS_RAQM = features.check("raqm")
 
-    font_title = ImageFont.truetype(FONT_EN, 82)
-    font_brand = ImageFont.truetype(FONT_FA, 48)
-    font_bold = ImageFont.truetype(FONT_FA, 28)
-    font_medium = ImageFont.truetype(FONT_FA, 26)
-    font_small = ImageFont.truetype(FONT_FA, 24)
+    font_title = ImageFont.truetype(FONT_EN, 88)  # Increased from 82
+    font_brand = ImageFont.truetype(FONT_FA, 52)  # Increased from 48
+    font_bold = ImageFont.truetype(FONT_FA, 30)   # Increased from 28
+    font_medium = ImageFont.truetype(FONT_FA, 28) # Increased from 26
+    font_small = ImageFont.truetype(FONT_FA, 26)  # Increased from 24
     # Use OpenSans font from project root for website address (15% smaller)
     try:
         font_website = ImageFont.truetype("OpenSans-Regular.ttf", 61)
@@ -129,7 +129,21 @@ def generate_main_label(order_data, output_path):
 
     def draw_fa(draw, xy, text, font, fill="black"):
         kwargs = {"direction": "rtl", "language": "fa"} if HAS_RAQM else {}
-        draw.text(xy, fa_shape(text), font=font, fill=fill, **kwargs)
+        # Add text stroke for better clarity
+        shaped_text = fa_shape(text)
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), shaped_text, font=font, fill="white", **kwargs)
+        # Draw main text
+        draw.text(xy, shaped_text, font=font, fill=fill, **kwargs)
+
+    def draw_text_with_stroke(draw, xy, text, font, fill="black"):
+        """Draw English text with stroke for better clarity"""
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), text, font=font, fill="white")
+        # Draw main text
+        draw.text(xy, text, font=font, fill=fill)
 
     def text_size(draw, text, font, fa=False):
         shaped = fa_shape(text) if fa else text
@@ -144,7 +158,7 @@ def generate_main_label(order_data, output_path):
     # 🔹 OFFER COFFEE
     t = "OFFER COFFEE"
     tw, th = text_size(draw, t, font_title)
-    draw.text(((LABEL_W - tw) / 2, 25), t, font=font_title, fill="black")
+    draw_text_with_stroke(draw, ((LABEL_W - tw) / 2, 25), t, font_title, fill="black")
 
     # 🔹 قهوه آفر
     brand = "قهوه آفر"
@@ -215,10 +229,11 @@ def generate_main_label(order_data, output_path):
     website_w, website_h = text_size(draw, website_text, font_website)
     website_x = (LABEL_W - website_w) // 2  # وسط صفحه
     website_y = LABEL_H - website_h - 20  # 20 پیکسل از پایین
-    draw.text((website_x, website_y), website_text, font=font_website, fill="black")
+    draw_text_with_stroke(draw, (website_x, website_y), website_text, font_website, fill="black")
 
     # ==============================
     # 🖼 خروجی
     # ==============================
-    img.save(output_path)
+    # Save with high DPI for better print quality
+    img.save(output_path, dpi=(300, 300), quality=95)
     print(f"✅ لیبل اصلی در {output_path} ذخیره شد")

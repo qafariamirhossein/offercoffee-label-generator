@@ -14,7 +14,7 @@ import os
 FONT_EN = "Galatican.ttf"
 FONT_FA = "BTitrBd.ttf"
 
-LABEL_W, LABEL_H = int(80 * 8), int(100 * 8)  # 80x100mm در 203 DPI
+LABEL_W, LABEL_H = int(80 * 9.6), int(100 * 9.6)  # 80x100mm در 243 DPI (20% افزایش برای کیفیت بهتر)
 
 def generate_details_label(order_data, output_path):
     """تولید لیبل جزئیات بر اساس داده‌های سفارش"""
@@ -63,11 +63,11 @@ def generate_details_label(order_data, output_path):
     # 📚 بارگذاری فونت‌ها
     try:
         HAS_RAQM = features.check("raqm")
-        font_title = ImageFont.truetype(FONT_EN, 88)
-        font_brand = ImageFont.truetype(FONT_FA, 58)
-        font_normal = ImageFont.truetype(FONT_FA, 26)
-        font_small = ImageFont.truetype(FONT_FA, 22)
-        font_bold = ImageFont.truetype(FONT_FA, 32)
+        font_title = ImageFont.truetype(FONT_EN, 94)  # Increased from 88
+        font_brand = ImageFont.truetype(FONT_FA, 62)  # Increased from 58
+        font_normal = ImageFont.truetype(FONT_FA, 28) # Increased from 26
+        font_small = ImageFont.truetype(FONT_FA, 24)  # Increased from 22
+        font_bold = ImageFont.truetype(FONT_FA, 34)   # Increased from 32
         # Use OpenSans font from project root for website address (15% smaller)
         try:
             font_website = ImageFont.truetype("OpenSans-Regular.ttf", 61)
@@ -143,12 +143,12 @@ def generate_details_label(order_data, output_path):
 
     _regular_fa_font_path = _find_regular_fa_font_path()
     font_fa_regular_small = (
-        ImageFont.truetype(_regular_fa_font_path, 22)
+        ImageFont.truetype(_regular_fa_font_path, 24)  # Increased from 22
         if _regular_fa_font_path
         else font_small
     )
     font_fa_regular_normal = (
-        ImageFont.truetype(_regular_fa_font_path, 26)
+        ImageFont.truetype(_regular_fa_font_path, 28)  # Increased from 26
         if _regular_fa_font_path
         else font_normal
     )
@@ -157,7 +157,21 @@ def generate_details_label(order_data, output_path):
     def fa_shape(text): return text if HAS_RAQM else get_display(reshape(text))
     def draw_fa_text(xy, text, font, fill="black"):
         kwargs = {"direction": "rtl", "language": "fa"} if HAS_RAQM else {}
-        draw.text(xy, fa_shape(text), font=font, fill=fill, **kwargs)
+        # Add text stroke for better clarity
+        shaped_text = fa_shape(text)
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), shaped_text, font=font, fill="white", **kwargs)
+        # Draw main text
+        draw.text(xy, shaped_text, font=font, fill=fill, **kwargs)
+
+    def draw_text_with_stroke(xy, text, font, fill="black"):
+        """Draw English text with stroke for better clarity"""
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), text, font=font, fill="white")
+        # Draw main text
+        draw.text(xy, text, font=font, fill=fill)
 
     def text_size(text, font):
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -206,7 +220,7 @@ def generate_details_label(order_data, output_path):
     # 🏷 عنوان انگلیسی
     title = "OFFER COFFEE"
     tw, th = text_size(title, font_title)
-    draw.text(((LABEL_W - tw) / 2, 25), title, font=font_title, fill="black")
+    draw_text_with_stroke(((LABEL_W - tw) / 2, 25), title, font_title, fill="black")
 
     # 🏷 عنوان فارسی
     brand = "قهوه آفر"
@@ -331,8 +345,9 @@ def generate_details_label(order_data, output_path):
     max_text_w = LABEL_W - 50  # حاشیه‌ها کمی کمتر برای بزرگ‌تر شدن متن
     font_website_big = autosize_website_font(website, max_text_w)
     ww, wh = text_size(website, font_website_big)
-    draw.text(((LABEL_W - ww) / 2, LABEL_H - wh - 18), website, font=font_website_big, fill="black")
+    draw_text_with_stroke(((LABEL_W - ww) / 2, LABEL_H - wh - 18), website, font_website_big, fill="black")
 
     # 📤 ذخیره و نمایش
-    img.save(output_path)
+    # Save with high DPI for better print quality
+    img.save(output_path, dpi=(300, 300), quality=95)
     print(f"✅ لیبل جزئیات در {output_path} ذخیره شد")

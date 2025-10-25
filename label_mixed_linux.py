@@ -20,7 +20,7 @@ except ImportError as e:
 FONT_EN = "Galatican.ttf"
 FONT_FA = "BTitrBd.ttf"
 
-LABEL_W, LABEL_H = int(80 * 8), int(100 * 8)  # 80x100mm در 203 DPI
+LABEL_W, LABEL_H = int(80 * 9.6), int(100 * 9.6)  # 80x100mm در 243 DPI (20% افزایش برای کیفیت بهتر)
 
 def generate_mixed_label(order_details, output_path):
     """تولید برچسب میکس برای سفارش"""
@@ -87,11 +87,11 @@ def generate_mixed_label(order_details, output_path):
     # 📚 بارگذاری فونت‌ها
     try:
         HAS_RAQM = features.check("raqm")
-        font_title = ImageFont.truetype(FONT_EN, 88)
-        font_brand = ImageFont.truetype(FONT_FA, 58)
-        font_normal = ImageFont.truetype(FONT_FA, 26)
-        font_small = ImageFont.truetype(FONT_FA, 22)
-        font_bold = ImageFont.truetype(FONT_FA, 32)
+        font_title = ImageFont.truetype(FONT_EN, 94)  # Increased from 88
+        font_brand = ImageFont.truetype(FONT_FA, 62)  # Increased from 58
+        font_normal = ImageFont.truetype(FONT_FA, 28) # Increased from 26
+        font_small = ImageFont.truetype(FONT_FA, 24)  # Increased from 22
+        font_bold = ImageFont.truetype(FONT_FA, 34)   # Increased from 32
         # Use OpenSans font from project root for website address (same as main/details)
         try:
             font_website = ImageFont.truetype("OpenSans-Regular.ttf", 61)
@@ -167,12 +167,12 @@ def generate_mixed_label(order_details, output_path):
 
     _regular_fa_font_path = _find_regular_fa_font_path()
     font_fa_regular_small = (
-        ImageFont.truetype(_regular_fa_font_path, 22)
+        ImageFont.truetype(_regular_fa_font_path, 24)  # Increased from 22
         if _regular_fa_font_path
         else font_small
     )
     font_fa_regular_normal = (
-        ImageFont.truetype(_regular_fa_font_path, 26)
+        ImageFont.truetype(_regular_fa_font_path, 28)  # Increased from 26
         if _regular_fa_font_path
         else font_normal
     )
@@ -191,7 +191,21 @@ def generate_mixed_label(order_details, output_path):
                 return text
     def draw_fa_text(xy, text, font, fill="black"):
         kwargs = {"direction": "rtl", "language": "fa"} if HAS_RAQM else {}
-        draw.text(xy, fa_shape(text), font=font, fill=fill, **kwargs)
+        # Add text stroke for better clarity
+        shaped_text = fa_shape(text)
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), shaped_text, font=font, fill="white", **kwargs)
+        # Draw main text
+        draw.text(xy, shaped_text, font=font, fill=fill, **kwargs)
+
+    def draw_text_with_stroke(xy, text, font, fill="black"):
+        """Draw English text with stroke for better clarity"""
+        # Draw stroke (outline) in white first
+        for adj in [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]:
+            draw.text((xy[0] + adj[0], xy[1] + adj[1]), text, font=font, fill="white")
+        # Draw main text
+        draw.text(xy, text, font=font, fill=fill)
 
     def text_size(text, font):
         bbox = draw.textbbox((0, 0), text, font=font)
@@ -206,12 +220,12 @@ def generate_mixed_label(order_details, output_path):
     # 🏷 عنوان انگلیسی
     title = "OFFER COFFEE"
     tw, th = text_size(title, font_title)
-    draw.text(((LABEL_W - tw) / 2, 25), title, font=font_title, fill="black")
+    draw_text_with_stroke(((LABEL_W - tw) / 2, 25), title, font_title, fill="black")
 
     # 🏷 عنوان فارسی
     brand = "قهوه آفر"
     bw, bh = fa_text_size(brand, font_brand)
-    draw_fa_text(((LABEL_W - bw) / 2, 120), brand, font=font_brand, fill="black")
+    draw_fa_text(((LABEL_W - bw) / 2, 140), brand, font=font_brand, fill="black")  # Moved down from 120 to 140
 
     # 🏢 آدرس‌ها
     addresses = [
@@ -220,14 +234,14 @@ def generate_mixed_label(order_details, output_path):
         "امور بازرگانی: خیابان شریعتی، خ پلیس، اجاره داری، ۳۸",
         "مرکز تماس: ۹۰۰۰۴۵۰۵ (خط ویژه بدون کد تماس) (رایگان)"
     ]
-    y_address = 190
+    y_address = 210  # Moved down from 190 to 210
     for line in addresses:
         lw, lh = fa_text_size(line, font_small)
         draw_fa_text((LABEL_W - lw - 30, y_address), line, font=font_small)
-        y_address += 33
+        y_address += 40  # Increased spacing from 33 to 40
 
     # 🧾 بخش ترکیبات و جزئیات محصول - با تراز عمودی بهبود یافته
-    y_center_section = 380  # موقعیت مرکزی برای بخش ترکیبات
+    y_center_section = 400  # موقعیت مرکزی برای بخش ترکیبات - moved down from 380 to 400
     
     # محاسبه موقعیت شروع بخش ترکیبات (سمت راست)
     comp_title = "ترکیبات:"
@@ -273,7 +287,7 @@ def generate_mixed_label(order_details, output_path):
     # ➖ خط جداکننده بالا
     # Create dashed line by drawing multiple small segments
     x_start, x_end = 60, LABEL_W - 60
-    y = 360
+    y = 380  # Moved down from 360 to 380
     dash_length = 8
     gap_length = 4
     current_x = x_start
@@ -285,7 +299,7 @@ def generate_mixed_label(order_details, output_path):
     # ➖ خط جداکننده پایین
     # Create dashed line by drawing multiple small segments
     x_start, x_end = 60, LABEL_W - 60
-    y = 620  # 30 پیکسل بالاتر
+    y = 640  # Moved down from 620 to 640
     dash_length = 8
     gap_length = 4
     current_x = x_start
@@ -300,7 +314,7 @@ def generate_mixed_label(order_details, output_path):
         "قهوه آفر عرضه کننده مرغوب ترین دانه قهوه",
         "قهوه فوری و تجهیزات"
     ]
-    y_desc = 630  # 30 پیکسل بالاتر
+    y_desc = 650  # Moved down from 630 to 650
     for line in desc_lines:
         lw, lh = fa_text_size(line, font_fa_regular_small)
         draw_fa_text(((LABEL_W - lw) / 2, y_desc), line, font=font_fa_regular_small)
@@ -309,10 +323,11 @@ def generate_mixed_label(order_details, output_path):
     # 🌐 وب‌سایت
     website = "www.offercoffee.ir"
     ww, wh = text_size(website, font_website)
-    draw.text(((LABEL_W - ww) / 2, LABEL_H - wh - 25), website, font=font_website, fill="black")
+    draw_text_with_stroke(((LABEL_W - ww) / 2, LABEL_H - wh - 45), website, font=font_website, fill="black")  # Moved up from 25 to 45
 
     # 📤 ذخیره و نمایش
-    img.save(output_path)
+    # Save with high DPI for better print quality
+    img.save(output_path, dpi=(300, 300), quality=95)
     print(f"✅ برچسب میکس سفارش {order_no} در '{output_path}' ذخیره شد.")
     return True
 
