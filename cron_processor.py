@@ -139,7 +139,7 @@ def is_payment_completed(order_details: Dict[str, Any], logger: logging.Logger) 
     try:
         payment_status = str(order_details.get('status', '')).lower()
         payment_method = order_details.get('payment_method', '')
-        paid_statuses = ['completed', 'processing', 'on-hold']
+        paid_statuses = ['processing', 'on-hold']
 
         if payment_status not in paid_statuses:
             logger.info(f"⏭️ سفارش {order_details.get('id')} پرداخت نشده (status={payment_status})")
@@ -207,7 +207,7 @@ def validate_config(logger: logging.Logger) -> bool:
 def get_paid_orders(api: WooCommerceAPI, logger: logging.Logger, per_page: int = 15) -> List[Dict[str, Any]]:
     # Fetch multiple statuses considered paid
     orders_summary: List[Dict[str, Any]] = []
-    for status in ['processing', 'completed', 'on-hold']:
+    for status in ['processing', 'on-hold']:
         try:
             part = api.get_orders(status=status, per_page=per_page) or []
             if part:
@@ -349,7 +349,25 @@ def main() -> int:
     return 0
 
 
+def test_order_statuses():
+    """تست وضعیت‌های سفارشات بدون نیاز به API"""
+    print("🔍 وضعیت‌های سفارشات که به عنوان پرداخت شده در نظر گرفته می‌شوند:")
+    statuses = ['processing', 'on-hold', 'shipped', 'delivered', 'fulfilled']
+    for i, status in enumerate(statuses, 1):
+        print(f"   {i}. {status}")
+    
+    print("\n📝 برای تست کامل، کلیدهای API را در config.py تنظیم کنید:")
+    print("   1. وارد پنل مدیریت وردپرس شوید")
+    print("   2. به WooCommerce > Settings > Advanced > REST API بروید")
+    print("   3. یک کلید جدید ایجاد کنید")
+    print("   4. کلیدها را در فایل config.py قرار دهید")
+
+
 if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == '--test-statuses':
+        test_order_statuses()
+        sys.exit(0)
+    
     try:
         sys.exit(main())
     except KeyboardInterrupt:
