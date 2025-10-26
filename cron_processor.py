@@ -27,6 +27,17 @@ from label_main import generate_main_label
 from label_details import generate_details_label
 from label_mixed import generate_mixed_label
 
+# Import printing functionality
+try:
+    import win32print, win32ui
+    from PIL import Image, ImageWin
+    PRINTING_AVAILABLE = True
+except ImportError:
+    PRINTING_AVAILABLE = False
+
+# تنظیمات چاپگر
+PRINTER_NAME = "Godex G500"  # نام چاپگر
+
 
 # -----------------------
 # Helpers
@@ -65,6 +76,63 @@ def setup_logger() -> logging.Logger:
     logger.info('🚀 شروع پردازش زمان‌بندی‌شده سفارشات')
     logger.info(f'📁 مسیر پروژه: {BASE_DIR}')
     return logger
+
+
+def print_label(image_path: str, logger: logging.Logger) -> bool:
+    """چاپ لیبل با مدیریت حالت وجود چندین چاپگر"""
+    try:
+        if not PRINTING_AVAILABLE:
+            logger.info(f"💾 چاپگر در دسترس نیست - تصویر ذخیره شد: {image_path}")
+            return True
+            
+        # بررسی وجود چاپگر با لیست دقیق‌تر چاپگرها
+        try:
+            all_printers = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
+            printer_names = [printer[2] for printer in all_printers]
+            logger.info(f"🖨️ چاپگرهای در دسترس: {', '.join(printer_names) if printer_names else 'هیچ'}")
+            
+            # جستجوی دقیق‌تر نام چاپگر (با در نظر گیری حروف کوچک و بزرگ)
+            matching_printer = None
+            for printer_name in printer_names:
+                if PRINTER_NAME.lower() in printer_name.lower() or printer_name.lower() in PRINTER_NAME.lower():
+                    matching_printer = printer_name
+                    logger.info(f"✅ چاپگر مورد نظر یافت شد: {matching_printer}")
+                    break
+            
+            if not matching_printer:
+                logger.warning(f"⚠️ چاپگر '{PRINTER_NAME}' در لیست چاپگرهای موجود نیست")
+                logger.warning(f"📋 چاپگرهای موجود: {printer_names}")
+                return True
+            
+            # بارگذاری و چاپ تصویر
+            img = Image.open(image_path)
+            
+            # باز کردن چاپگر
+            hprinter = win32print.OpenPrinter(matching_printer)
+            pdc = win32ui.CreateDC()
+            pdc.CreatePrinterDC(matching_printer)
+            pdc.StartDoc("Offer Coffee Label")
+            pdc.StartPage()
+            
+            dib = ImageWin.Dib(img)
+            dib.draw(pdc.GetHandleOutput(), (0, 0, img.width, img.height))
+            
+            pdc.EndPage()
+            pdc.EndDoc()
+            pdc.DeleteDC()
+            
+            logger.info(f"✅ لیبل با موفقیت چاپ شد: {os.path.basename(image_path)}")
+            return True
+            
+        except Exception as printer_error:
+            logger.error(f"❌ خطا در دسترسی به چاپگر: {printer_error}")
+            return False
+        
+    except Exception as e:
+        logger.error(f"❌ خطا در چاپ - تصویر ذخیره شد: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
 
 
 def is_payment_completed(order_details: Dict[str, Any], logger: logging.Logger) -> bool:
@@ -156,44 +224,67 @@ def process_order(order_details: Dict[str, Any], logger: logging.Logger) -> bool
         output_dir = LABEL_CONFIG.get('output_dir', 'labels')
         os.makedirs(output_dir, exist_ok=True)
 
+        all_labels = []  # لیست تمام لیبل‌های تولید شده
+
         if is_mixed_order(order_details):
             logger.info(f"🔀 سفارش {order_id} میکس است - تولید لیبل میکس")
             mixed_path = os.path.join(output_dir, f"order_{order_id}_mixed.jpg")
             ok = generate_mixed_label(order_details, mixed_path)
             if ok:
                 logger.info(f"✅ لیبل میکس تولید شد: {mixed_path}")
+                all_labels.append(mixed_path)
             else:
                 logger.warning(f"⚠️ تولید لیبل میکس ناموفق برای سفارش {order_id}")
-            return bool(ok)
+                return False
+        else:
+            # Normal order: back + details per line item
+            line_items = order_details.get('line_items', [])
+            if not line_items:
+                logger.info(f"⏭️ سفارش {order_id} آیتمی ندارد")
+                return False
 
-        # Normal order: back + details per line item
-        line_items = order_details.get('line_items', [])
-        if not line_items:
-            logger.info(f"⏭️ سفارش {order_id} آیتمی ندارد")
-            return False
+            generated = 0
 
-        generated = 0
+            # Back labels
+            for i, item in enumerate(line_items):
+                back_path = os.path.join(output_dir, f"order_{order_id}_back_{i+1}.jpg")
+                single = dict(order_details)
+                single['line_items'] = [item]
+                generate_main_label(single, back_path)
+                all_labels.append(back_path)
+                generated += 1
+                logger.info(f"✅ لیبل پشت {i+1}/{len(line_items)}: {back_path}")
 
-        # Back labels
-        for i, item in enumerate(line_items):
-            back_path = os.path.join(output_dir, f"order_{order_id}_back_{i+1}.jpg")
-            single = dict(order_details)
-            single['line_items'] = [item]
-            generate_main_label(single, back_path)
-            generated += 1
-            logger.info(f"✅ لیبل پشت {i+1}/{len(line_items)}: {back_path}")
+            # Details labels
+            for i, item in enumerate(line_items):
+                details_path = os.path.join(output_dir, f"order_{order_id}_details_{i+1}.jpg")
+                single = dict(order_details)
+                single['line_items'] = [item]
+                generate_details_label(single, details_path)
+                all_labels.append(details_path)
+                generated += 1
+                logger.info(f"✅ لیبل جزئیات {i+1}/{len(line_items)}: {details_path}")
 
-        # Details labels
-        for i, item in enumerate(line_items):
-            details_path = os.path.join(output_dir, f"order_{order_id}_details_{i+1}.jpg")
-            single = dict(order_details)
-            single['line_items'] = [item]
-            generate_details_label(single, details_path)
-            generated += 1
-            logger.info(f"✅ لیبل جزئیات {i+1}/{len(line_items)}: {details_path}")
+            logger.info(f"🎉 در مجموع {generated} لیبل برای سفارش {order_id} تولید شد")
 
-        logger.info(f"🎉 در مجموع {generated} لیبل برای سفارش {order_id} تولید شد")
-        return generated > 0
+        # چاپ تمام لیبل‌های تولید شده
+        if all_labels and PRINTING_AVAILABLE:
+            logger.info(f"🖨️ شروع چاپ {len(all_labels)} لیبل برای سفارش {order_id}...")
+            printed_count = 0
+            for i, label_path in enumerate(all_labels):
+                print_success = print_label(label_path, logger)
+                if print_success:
+                    printed_count += 1
+                    logger.info(f"✅ لیبل {i+1}/{len(all_labels)} چاپ شد: {os.path.basename(label_path)}")
+                else:
+                    logger.warning(f"⚠️ لیبل {i+1}/{len(all_labels)} چاپ نشد: {os.path.basename(label_path)}")
+            logger.info(f"📊 {printed_count}/{len(all_labels)} لیبل با موفقیت چاپ شد")
+        elif not PRINTING_AVAILABLE:
+            logger.info("💾 ماژول چاپ در دسترس نیست - لیبل‌ها فقط ذخیره شدند")
+        else:
+            logger.info("💾 لیبل‌ها فقط ذخیره شدند (چاپگر فعال نشد)")
+
+        return len(all_labels) > 0
     except Exception as e:
         logger.error(f"❌ خطا در پردازش سفارش {order_details.get('id', 'نامشخص')}: {e}")
         return False
@@ -218,7 +309,7 @@ def main() -> int:
     logger.info(f"🗂️ {len(processed_ids)} سفارش قبلاً پردازش شده‌اند")
 
     # Fetch candidates
-    summaries = get_paid_orders(api, logger, per_page=15)
+    summaries = get_paid_orders(api, logger, per_page=100)
     if not summaries:
         logger.info('ℹ️ هیچ سفارشی یافت نشد')
         return 0
