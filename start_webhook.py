@@ -6,6 +6,11 @@
 
 import os
 import sys
+
+# Ensure we run from the project root (so relative font files work)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.chdir(BASE_DIR)
+
 import subprocess
 import time
 from pathlib import Path
