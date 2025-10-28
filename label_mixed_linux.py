@@ -249,8 +249,13 @@ def generate_mixed_label(order_details, output_path):
     comp_start_x = LABEL_W - comp_title_w - 30  # 30px margin from right edge
     
     # محاسبه موقعیت شروع بخش جزئیات (سمت چپ) - کمی پایین‌تر برای تراز بهتر
+    # بررسی اینکه آیا وزن قبلاً واحد دارد یا نه
+    weight_display = weight
+    if not any(unit in weight for unit in ['گرم', 'کیلوگرم']):
+        weight_display = f"{weight} گرم"
+    
     product_details = [
-        f"وزن: {weight} گرم",
+        f"وزن: {weight_display}",
         f"آسیاب شود: {grind}", 
         "اسپرسوساز"
     ]
