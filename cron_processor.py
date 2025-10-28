@@ -227,7 +227,9 @@ def process_order(order_details: Dict[str, Any], logger: logging.Logger) -> bool
         all_labels = []  # لیست تمام لیبل‌های تولید شده
 
         if is_mixed_order(order_details):
-            logger.info(f"🔀 سفارش {order_id} میکس است - تولید لیبل میکس")
+            logger.info(f"🔀 سفارش {order_id} میکس است - تولید لیبل میکس و لیبل بک")
+            
+            # تولید لیبل میکس
             mixed_path = os.path.join(output_dir, f"order_{order_id}_mixed.jpg")
             ok = generate_mixed_label(order_details, mixed_path)
             if ok:
@@ -236,6 +238,15 @@ def process_order(order_details: Dict[str, Any], logger: logging.Logger) -> bool
             else:
                 logger.warning(f"⚠️ تولید لیبل میکس ناموفق برای سفارش {order_id}")
                 return False
+            
+            # تولید لیبل بک برای سفارش میکس
+            back_path = os.path.join(output_dir, f"order_{order_id}_back.jpg")
+            ok = generate_main_label(order_details, back_path)
+            if ok:
+                logger.info(f"✅ لیبل بک میکس تولید شد: {back_path}")
+                all_labels.append(back_path)
+            else:
+                logger.warning(f"⚠️ تولید لیبل بک میکس ناموفق برای سفارش {order_id}")
         else:
             # Normal order: back + details per line item
             line_items = order_details.get('line_items', [])
