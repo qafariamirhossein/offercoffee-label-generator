@@ -247,31 +247,40 @@ def process_new_order(order_data: Dict[str, Any]) -> bool:
             # لیست تمام لیبل‌های تولید شده برای این سفارش
             all_labels = []
             
-            # تولید تمام لیبل‌های پشت (back) برای این سفارش
-            for i, item in enumerate(line_items):
-                # ایجاد لیبل پشت برای هر محصول
-                back_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_back_{i+1}.jpg"
-                logger.info(f"🏷️ تولید لیبل پشت برای محصول {i+1}: {item.get('name', 'نامشخص')}")
-                
-                # ایجاد کپی از order_data با فقط این محصول
-                single_product_order = order_data.copy()
-                single_product_order['line_items'] = [item]
-                
-                generate_main_label(single_product_order, back_label_path)
-                all_labels.append(back_label_path)
+            # شمارنده‌های جداگانه برای لیبل‌ها
+            back_counter = 1
+            details_counter = 1
             
-            # تولید تمام لیبل‌های جزئیات برای این سفارش
+            # تولید لیبل‌ها برای هر محصول با در نظر گیری quantity
             for i, item in enumerate(line_items):
-                # ایجاد لیبل جزئیات برای هر محصول
-                details_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_details_{i+1}.jpg"
-                logger.info(f"📋 تولید لیبل جزئیات برای محصول {i+1}: {item.get('name', 'نامشخص')}")
+                quantity = item.get('quantity', 1)
+                logger.info(f"📦 محصول {i+1}: {item.get('name', 'نامشخص')} - تعداد: {quantity}")
                 
-                # ایجاد کپی از order_data با فقط این محصول
-                single_product_order = order_data.copy()
-                single_product_order['line_items'] = [item]
+                # تولید لیبل‌های back برای هر عدد از این محصول
+                for qty in range(int(quantity)):
+                    back_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_back_{back_counter}.jpg"
+                    logger.info(f"🏷️ تولید لیبل پشت {back_counter}: {item.get('name', 'نامشخص')}")
+                    
+                    # ایجاد کپی از order_data با فقط این محصول
+                    single_product_order = order_data.copy()
+                    single_product_order['line_items'] = [item]
+                    
+                    generate_main_label(single_product_order, back_label_path)
+                    all_labels.append(back_label_path)
+                    back_counter += 1
                 
-                generate_details_label(single_product_order, details_label_path)
-                all_labels.append(details_label_path)
+                # تولید لیبل‌های details برای هر عدد از این محصول
+                for qty in range(int(quantity)):
+                    details_label_path = f"{LABEL_CONFIG['output_dir']}/order_{order_id}_details_{details_counter}.jpg"
+                    logger.info(f"📋 تولید لیبل جزئیات {details_counter}: {item.get('name', 'نامشخص')}")
+                    
+                    # ایجاد کپی از order_data با فقط این محصول
+                    single_product_order = order_data.copy()
+                    single_product_order['line_items'] = [item]
+                    
+                    generate_details_label(single_product_order, details_label_path)
+                    all_labels.append(details_label_path)
+                    details_counter += 1
             
             # چاپ تمام لیبل‌های این سفارش به ترتیب
             logger.info(f"🖨️ شروع چاپ {len(all_labels)} لیبل برای سفارش {order_id}...")

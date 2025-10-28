@@ -218,6 +218,15 @@ def get_paid_orders(api: WooCommerceAPI, logger: logging.Logger, per_page: int =
     return orders_summary
 
 
+def is_item_mixed(item: Dict[str, Any]) -> bool:
+    """بررسی اینکه آیا یک محصول خاص میکس است یا نه"""
+    name = str(item.get('name', '')).lower()
+    for kw in ['ترکیبی', 'میکس', 'combine', 'mixed', 'blend']:
+        if kw in name:
+            return True
+    return False
+
+
 def process_order(order_details: Dict[str, Any], logger: logging.Logger) -> bool:
     try:
         order_id = order_details.get('id')
@@ -225,58 +234,106 @@ def process_order(order_details: Dict[str, Any], logger: logging.Logger) -> bool
         os.makedirs(output_dir, exist_ok=True)
 
         all_labels = []  # لیست تمام لیبل‌های تولید شده
+        line_items = order_details.get('line_items', [])
+        
+        if not line_items:
+            logger.info(f"⏭️ سفارش {order_id} آیتمی ندارد")
+            return False
 
-        if is_mixed_order(order_details):
-            logger.info(f"🔀 سفارش {order_id} میکس است - تولید لیبل میکس و لیبل بک")
-            
-            # تولید لیبل میکس
-            mixed_path = os.path.join(output_dir, f"order_{order_id}_mixed.jpg")
-            ok = generate_mixed_label(order_details, mixed_path)
-            if ok:
-                logger.info(f"✅ لیبل میکس تولید شد: {mixed_path}")
-                all_labels.append(mixed_path)
+        # جدا کردن محصولات میکس و عادی
+        mixed_items = []
+        regular_items = []
+        
+        for item in line_items:
+            if is_item_mixed(item):
+                mixed_items.append(item)
             else:
-                logger.warning(f"⚠️ تولید لیبل میکس ناموفق برای سفارش {order_id}")
-                return False
+                regular_items.append(item)
+        
+        logger.info(f"📦 سفارش {order_id}: {len(mixed_items)} محصول میکس، {len(regular_items)} محصول عادی")
+        
+        generated = 0
+        
+        # پردازش محصولات میکس
+        if mixed_items:
+            logger.info(f"🔀 پردازش {len(mixed_items)} محصول میکس...")
             
-            # تولید لیبل بک برای سفارش میکس
-            back_path = os.path.join(output_dir, f"order_{order_id}_back.jpg")
-            ok = generate_main_label(order_details, back_path)
-            if ok:
-                logger.info(f"✅ لیبل بک میکس تولید شد: {back_path}")
-                all_labels.append(back_path)
-            else:
-                logger.warning(f"⚠️ تولید لیبل بک میکس ناموفق برای سفارش {order_id}")
-        else:
-            # Normal order: back + details per line item
-            line_items = order_details.get('line_items', [])
-            if not line_items:
-                logger.info(f"⏭️ سفارش {order_id} آیتمی ندارد")
-                return False
+            back_counter = 1  # شمارنده جداگانه برای لیبل‌های back
+            mixed_counter = 1  # شمارنده جداگانه برای لیبل‌های mixed
+            
+            # تولید لیبل‌ها برای هر محصول میکس، با توجه به مقدار (quantity)
+            for item in mixed_items:
+                quantity = item.get('quantity', 1)
+                logger.info(f"   محصول: {item.get('name', 'نامشخص')} - تعداد: {quantity}")
+                
+                # تولید لیبل mixed برای هر عدد از این محصول (به تعداد quantity)
+                for qty in range(int(quantity)):
+                    mixed_path = os.path.join(output_dir, f"order_{order_id}_mixed_{mixed_counter}.jpg")
+                    single_mixed = dict(order_details)
+                    single_mixed['line_items'] = [item]  # فقط این محصول میکس
+                    ok = generate_mixed_label(single_mixed, mixed_path)
+                    if ok:
+                        logger.info(f"✅ لیبل میکس {mixed_counter}: {mixed_path}")
+                        all_labels.append(mixed_path)
+                        generated += 1
+                    else:
+                        logger.warning(f"⚠️ تولید لیبل میکس {mixed_counter} ناموفق")
+                    mixed_counter += 1
+                
+                # تولید لیبل back برای هر عدد از این محصول (به تعداد quantity)
+                for qty in range(int(quantity)):
+                    back_path = os.path.join(output_dir, f"order_{order_id}_back_{back_counter}.jpg")
+                    single = dict(order_details)
+                    single['line_items'] = [item]
+                    ok = generate_main_label(single, back_path)
+                    if ok:
+                        logger.info(f"✅ لیبل پشت {back_counter}: {back_path}")
+                        all_labels.append(back_path)
+                        generated += 1
+                    else:
+                        logger.warning(f"⚠️ تولید لیبل پشت {back_counter} ناموفق")
+                    back_counter += 1
+        
+        # پردازش محصولات عادی
+        if regular_items:
+            logger.info(f"📋 پردازش {len(regular_items)} محصول عادی...")
+            
+            # شمارنده جداگانه برای لیبل‌های back محصولات عادی
+            regular_back_counter = back_counter if mixed_items else 1  # ادامه شمارنده از محصولات میکس یا شروع از 1
+            
+            # تولید لیبل details و back برای هر محصول عادی
+            for i, item in enumerate(regular_items):
+                quantity = item.get('quantity', 1)
+                logger.info(f"   محصول: {item.get('name', 'نامشخص')} - تعداد: {quantity}")
+                
+                # تولید لیبل details برای هر عدد از این محصول (به تعداد quantity)
+                for qty in range(int(quantity)):
+                    details_path = os.path.join(output_dir, f"order_{order_id}_details_{i+1}.jpg")
+                    single = dict(order_details)
+                    single['line_items'] = [item]
+                    ok = generate_details_label(single, details_path)
+                    if ok:
+                        logger.info(f"✅ لیبل جزئیات {i+1}/{len(regular_items)}: {details_path}")
+                        all_labels.append(details_path)
+                        generated += 1
+                    else:
+                        logger.warning(f"⚠️ تولید لیبل جزئیات {i+1} ناموفق")
+                
+                # تولید لیبل back برای هر عدد از این محصول (به تعداد quantity)
+                for qty in range(int(quantity)):
+                    back_path = os.path.join(output_dir, f"order_{order_id}_back_{regular_back_counter}.jpg")
+                    single = dict(order_details)
+                    single['line_items'] = [item]
+                    ok = generate_main_label(single, back_path)
+                    if ok:
+                        logger.info(f"✅ لیبل پشت {regular_back_counter}: {back_path}")
+                        all_labels.append(back_path)
+                        generated += 1
+                    else:
+                        logger.warning(f"⚠️ تولید لیبل پشت {regular_back_counter} ناموفق")
+                    regular_back_counter += 1
 
-            generated = 0
-
-            # Back labels
-            for i, item in enumerate(line_items):
-                back_path = os.path.join(output_dir, f"order_{order_id}_back_{i+1}.jpg")
-                single = dict(order_details)
-                single['line_items'] = [item]
-                generate_main_label(single, back_path)
-                all_labels.append(back_path)
-                generated += 1
-                logger.info(f"✅ لیبل پشت {i+1}/{len(line_items)}: {back_path}")
-
-            # Details labels
-            for i, item in enumerate(line_items):
-                details_path = os.path.join(output_dir, f"order_{order_id}_details_{i+1}.jpg")
-                single = dict(order_details)
-                single['line_items'] = [item]
-                generate_details_label(single, details_path)
-                all_labels.append(details_path)
-                generated += 1
-                logger.info(f"✅ لیبل جزئیات {i+1}/{len(line_items)}: {details_path}")
-
-            logger.info(f"🎉 در مجموع {generated} لیبل برای سفارش {order_id} تولید شد")
+        logger.info(f"🎉 در مجموع {generated} لیبل برای سفارش {order_id} تولید شد")
 
         # چاپ تمام لیبل‌های تولید شده
         if all_labels and PRINTING_AVAILABLE:
