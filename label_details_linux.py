@@ -351,3 +351,4 @@ def generate_details_label(order_data, output_path):
     # Save with high DPI for better print quality
     img.save(output_path, dpi=(300, 300), quality=95)
     print(f"✅ لیبل جزئیات در {output_path} ذخیره شد")
+    return True

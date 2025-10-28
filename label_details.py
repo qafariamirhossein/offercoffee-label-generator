@@ -357,3 +357,4 @@ def generate_details_label(order_data, output_path):
     # 📤 ذخیره و نمایش
     img.save(output_path)
     print(f"✅ لیبل جزئیات در {output_path} ذخیره شد")
+    return True

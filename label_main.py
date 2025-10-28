@@ -242,3 +242,4 @@ def generate_main_label(order_data, output_path):
     # ==============================
     img.save(output_path)
     print(f"✅ لیبل اصلی در {output_path} ذخیره شد")
+    return True
